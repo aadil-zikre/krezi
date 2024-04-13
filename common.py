@@ -15,12 +15,13 @@ import datetime
 import time 
 import itables
 import logging
-from file_logger import Logger
+from krezi.logging_util.file_logger import Logger
 import importlib
 import sys
 import gc
 import pickle 
-from mp_util import run_in_parallel
+from collections import defaultdict
+from krezi.multiprocessing_util.mp_util import run_in_parallel
 
 data_dir = "/home/azikre/Python/notebooks/data/"
 log_dir = "/home/azikre/Python/notebooks/logs/"
