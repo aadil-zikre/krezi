@@ -114,6 +114,23 @@ def func_et(func):
     return func_wrapper
 
 def custom_round_nearest_p5(number):
+    """
+    Rounds a number to the nearest multiple of 0.5.
+
+    Parameters:
+        number (float): The number to be rounded.
+
+    Returns:
+        float: The rounded number.
+
+    Example:
+        >>> custom_round_nearest_p5(2.3)
+        2.5
+        >>> custom_round_nearest_p5(3.7)
+        4.0
+        >>> custom_round_nearest_p5(0.0)
+        0.0
+    """
     x = number%1
     if x==0:
         return number
