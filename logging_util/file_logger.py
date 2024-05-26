@@ -2,12 +2,13 @@ import logging
 import sys
 
 class Logger:
-    def __init__(self, logger_name=None, add_stream_handler = True, std_err = False, level = 'debug'):
+    def __init__(self, logger_name=None, add_stream_handler = True, std_err = False, level = 'debug', **kwargs):
         self.logger_name = logger_name if logger_name else __name__
         self.add_stream_handler = add_stream_handler
         self.std_err = std_err
         self.level = self.LEVELS.get(level, logging.INFO)
         self.logger = None
+        self.dt_fmt_basic = kwargs.get('dt_fmt_basic', True)
     
     LEVELS = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARNING, 'error': logging.ERROR, 'critical': logging.CRITICAL}
     
@@ -19,7 +20,7 @@ class Logger:
             logger.removeHandler(handler)
         return logger
     
-    def set_logger(self, dt_fmt_basic = True):
+    def set_logger(self, dt_fmt_basic=None):
         logging.basicConfig(
             format="%(asctime)s :: [%(levelname)s] :: %(message)s", 
             datefmt='%d %B, %Y %I:%M:%S %p %z',
@@ -29,6 +30,7 @@ class Logger:
         logging.getLogger().removeHandler(logging.getLogger().handlers[0])
         self.logger = logging.getLogger(self.logger_name) ## IMP: __name__ is important for scope of logger
         self.logger.setLevel(logging.DEBUG)
+        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic is None else dt_fmt_basic
         if dt_fmt_basic:
             formatter = logging.Formatter("%(asctime)s :: [%(levelname)s] :: %(message)s")
         else:
@@ -48,13 +50,34 @@ class Logger:
             self.set_logger(dt_fmt_basic)
         return self.logger
     
-    def add_file_handler(self, filepath, level = logging.INFO):
+    def add_file_handler(self, filepath, level = logging.INFO, dt_fmt_basic=None):
         file_handler = logging.FileHandler(filepath)
         file_handler.setLevel(level)
-        formatter = logging.Formatter(
-            '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s', datefmt='%d %B, %Y %I:%M:%S %p %z')
+        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic is None else dt_fmt_basic
+        if dt_fmt_basic:
+            formatter = logging.Formatter(
+                '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s')
+        else:
+            formatter = logging.Formatter(
+                '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s', datefmt='%d %B, %Y %I:%M:%S %p %z')
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
+        return self.get_logger()
+    
+    def add_log_prefix(self, prefix):
+        self.prefix = prefix
+        for handler in self.logger.handlers:
+            if self.prefix:
+                formatter = logging.Formatter(handler.formatter._fmt.replace("%(message)s", "") + f"{prefix} :: %(message)s", datefmt=handler.formatter.datefmt)
+                handler.setFormatter(formatter)
+        return self.get_logger()
+    
+    def remove_log_prefix(self):
+        for handler in self.logger.handlers:
+            if self.prefix:
+                formatter = logging.Formatter(handler.formatter._fmt.replace(f"{self.prefix} :: %(message)s", "%(message)s"), datefmt=handler.formatter.datefmt)
+                handler.setFormatter(formatter)
+        self.prefix = None
         return self.get_logger()
     
     def __str__(self):
@@ -66,26 +89,3 @@ class Logger:
                 h_name, h_op, h_level = i.__str__().replace("<","").replace(">","").split(" ")
                 to_print = "".join([to_print, "\n", f"{num} :: {h_name} :: {h_level}"])
         return to_print
-    
-def file_logger(level=logging.INFO, want_stream=True, filepath = "/Users/aadilzikre/Documents/Personal/tmp.log"):
-    # initialize a logger
-    logger = logging.getLogger(__name__)
-    # set level to the loggger (this will act as a global level)
-    logger.setLevel(logging.DEBUG)
-    # initialize a file handler for properly maintaining a log file
-    # set level and format for the handler
-    file_handler = logging.FileHandler(filepath)
-    file_handler.setLevel(level)
-    formatter = logging.Formatter(
-        '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s', datefmt='%d %B, %Y %I:%M:%S %p %z')
-    file_handler.setFormatter(formatter)
-    # add the handler to the logger and you are all set for logging
-    logger.addHandler(file_handler)
-    # add stram handler
-    if want_stream:
-        stream_handler = logging.StreamHandler(stream=sys.stdout)
-        formatter_sh = logging.Formatter(
-            '%(asctime)s :: %(message)s', datefmt='%d %B, %Y %I:%M:%S %p %z')
-        stream_handler.setFormatter(formatter_sh)
-        logger.addHandler(stream_handler)
-    return logger

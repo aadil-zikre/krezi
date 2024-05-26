@@ -6,6 +6,9 @@ import __main__
 # from IPython.display import display, HTML
 import IPython.display as ip_display
 def fit_to_screen():
+    """
+    A function to fit the display to the screen by modifying the HTML style.
+    """
     ip_display.display(ip_display.HTML("<style>.container { width:100% !important; }</style>"))
 fit_to_screen()
 
@@ -19,24 +22,60 @@ from krezi.logging_util.file_logger import Logger
 import importlib
 import sys
 import gc
-import pickle 
+import pickle
+import functools 
 from collections import defaultdict
 from krezi.multiprocessing_util.mp_util import run_in_parallel
 
-data_dir = "/home/azikre/Python/notebooks/data/"
+data_dir = "/home/azikre/Python/notebooks/data/" # *REMINDER to CHANGE
 log_dir = "/home/azikre/Python/notebooks/logs/"
 tmp_dir = "/home/azikre/Python/notebooks/tmp/"
 
 import types
 def imported_modules():
+    """
+    Generates a generator that yields the names and values of imported modules.
+
+    This function iterates over the global namespace and checks if each value is an instance of the `types.ModuleType` class. If it is, the function yields a tuple containing the module's name and the corresponding variable name.
+
+    Yields:
+        tuple: A tuple containing the module name (str) and the variable name (str) of an imported module.
+
+    Example:
+        >>> for module_name, var_name in imported_modules():
+        ...     print(module_name, var_name)
+        module1 var1
+        module2 var2
+    """
     for name, val in globals().items():  # Everytime Globals is called, dict size will change as every run adds a new cell run info like _i120 and _120
         if isinstance(val, types.ModuleType):
             yield val.__name__, name
 
 def display_imported_modules():
-    for module, alias in imported_modules(): print(f"{module:<50} as {' '*5}{alias}")
+    """
+    Display the imported modules and their aliases.
+
+    This function iterates over the imported modules and their aliases using the `imported_modules` function. It prints the module name followed by its alias, with a fixed width of 50 characters for the module name and 5 spaces for the alias.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
+    for module, alias in imported_modules(): 
+        print(f"{module:<50} as {' '*5}{alias}")
 
 def elapsed_time(start_tm):
+    """
+    Calculate the elapsed time from a given start time.
+
+    Args:
+        start_tm (float): The start time in seconds since the epoch.
+
+    Returns:
+        str: The elapsed time in seconds if it is less than 120 seconds, otherwise in minutes.
+    """
     et = time.time() - start_tm
     if et < 120 : 
         return f"{et:.1f} seconds"
@@ -45,6 +84,26 @@ def elapsed_time(start_tm):
 
 # ^Decorator
 def func_et(func):
+    """
+    Decorator function that logs the start and end of a function execution, as well as the time taken to execute it.
+
+    Parameters:
+        func (function): The function to be wrapped.
+
+    Returns:
+        function: The wrapped function.
+
+    Example:
+        @func_et
+        def my_function():
+            # Function code here
+            pass
+
+        # Output:
+        # log_prefix :: my_function :: Function Execution Started
+        # log_prefix :: my_function :: Function Execution Done :: Time Taken -> 0.123 seconds
+    """
+    @functools.wraps
     def func_wrapper(*args, **kwargs):
         log_info(f"{func.__name__} :: Function Execution Started")
         start_tm = time.time()
@@ -65,7 +124,29 @@ def custom_round_nearest_p5(number):
 
 STARTING_THRESHOLD = 0
 def accuracy_calculator_xgb_reg(y_actual, y_pred, apply_round = False, round_engine = custom_round_nearest_p5, thresh = STARTING_THRESHOLD):
-    """y_actual -> actual, y_pred -> prediction"""
+    """
+    Calculates the accuracy of a regression model using XGBoost.
+    
+    Args:
+        y_actual (array-like): The actual values.
+        y_pred (array-like): The predicted values.
+        apply_round (bool, optional): Whether to apply rounding to the actual and predicted values. Defaults to False.
+        round_engine (function, optional): The rounding function to apply. Defaults to custom_round_nearest_p5.
+        thresh (float, optional): The threshold value for calculating the accuracy. Defaults to STARTING_THRESHOLD.
+        
+    Returns:
+        dict: A dictionary containing the accuracy metrics:
+            - "ACCURACY" (float): The accuracy in percentage.
+            - "MAPE" (float): The mean absolute percentage error.
+            - "MAE" (float): The mean absolute error.
+            - "ACC_10%" (float): The accuracy at 10% tolerance level.
+            - "ACC_15%" (float): The accuracy at 15% tolerance level.
+            - "ACC_20%" (float): The accuracy at 20% tolerance level.
+            - "ACC_30%" (float): The accuracy at 30% tolerance level.
+            - "over_predicted%" (float): The percentage of over-predicted values.
+            - "under_predicted%" (float): The percentage of under-predicted values.
+    """
+    
     if apply_round:
         y_actual = pd.Series(y_actual).apply(round_engine).reset_index(drop = True)
         y_pred = pd.Series(y_pred).apply(round_engine).reset_index(drop = True)
@@ -95,14 +176,28 @@ def accuracy_calculator_xgb_reg(y_actual, y_pred, apply_round = False, round_eng
             "MAPE" :round(100-acc_mape,2),
             "MAE" : round(acc_mae,2),
             "ACC_10%" : round(acc_10_perc,2),
-#             "ACC_15%" : round(acc_15_perc,2),
+            "ACC_15%" : round(acc_15_perc,2),
             "ACC_20%" : round(acc_20_perc,2),
             "ACC_30%" : round(acc_30_perc,2),
             "over_predicted%" : round(perc_op,2), 
             "under_predicted%" : round(perc_up,2)}
 
-def create_date_features(df,date_col):
-    # Date Features
+def create_date_features(df, date_col, holidays = None):
+    """
+    Creates date features for a given DataFrame.
+
+    Parameters:
+        df (pandas.DataFrame): The DataFrame containing the date column.
+        date_col (str): The name of the date column.
+        holidays (pandas.DataFrame, optional): A DataFrame containing holiday information. Defaults to None.
+
+    Returns:
+        pandas.DataFrame: The DataFrame with additional date features.
+
+    Raises:
+        None
+    """
+    # * Date Features
     df[date_col] = pd.to_datetime(df[date_col])
     df['date'] = df[date_col]
     df['month'] = df.date.dt.month
@@ -114,46 +209,81 @@ def create_date_features(df,date_col):
     df['is_weekend'] = [1 if x.dayofweek in [5,6] else 0 for x in df['date']]
     df['daysinmonth'] = df.date.dt.daysinmonth
     
-#     checks for holidays
-    #public_holiday_list = set(holidays[holidays['holiday']=='public'].ds)
-    #not_pulic_holiday_list = set(holidays[holidays['holiday']!='public'].ds)
-    #df['is_public_holiday'] = df["date"].apply(lambda x: 1 if x in public_holiday_list else 0)
-    #df['is_not_public_holiday'] = df["date"].apply(lambda x: 1 if x in not_pulic_holiday_list else 0)
-    # holiday_list=set(holidays.ds)
-   # df['is_public_holiday'] = df["date"].apply(lambda x: 1 if x in public_holiday_list else 0)
-   # df['is_not_public_holiday'] = df["date"].apply(lambda x: 1 if x in not_pulic_holiday_list else 0)
-    # df['is_holiday']=df["date"].apply(lambda x: 1 if x in holiday_list else 0)
+    # * checks for holidays
+    if holidays:
+        public_holiday_list = set(holidays[holidays['holiday']=='public'].ds)
+        not_pulic_holiday_list = set(holidays[holidays['holiday']!='public'].ds)
     
-#     df["dotd_active"] = df["date"].apply(lambda x: 1 if x in list(df_dotd.date) else 0)
+        df['is_public_holiday'] = df["date"].apply(lambda x: 1 if x in public_holiday_list else 0)
+        df['is_not_public_holiday'] = df["date"].apply(lambda x: 1 if x in not_pulic_holiday_list else 0)
     
+    # * start and end features
     df['is_month_start'] = df.date.dt.is_month_start.astype(int)
     df['is_month_end'] = df.date.dt.is_month_end.astype(int)
     df['is_quarter_start'] = df.date.dt.is_quarter_start.astype(int)
     df['is_quarter_end'] = df.date.dt.is_quarter_end.astype(int)
     df['is_year_start'] = df.date.dt.is_year_start.astype(int)
     df['is_year_end'] = df.date.dt.is_year_end.astype(int)
+    
+    # * Season
+    # TODO: As seasons dont necessarily have a hierarchy, consider adding is_<_season_> features
     # 0: Winter - 1: Spring - 2: Summer - 3: Fall
-    df["season"] = np.where(df.month.isin([12,1,2]), 0, 1)
-    df["season"] = np.where(df.month.isin([6,7,8]), 2, df["season"])
-    df["season"] = np.where(df.month.isin([9, 10, 11]), 3, df["season"])
+    df['season'] = 1
+    df.loc[df['month'].isin([12, 1, 2]), 'season'] = 0
+    df.loc[df['month'].isin([6, 7, 8]), 'season'] = 2
+    df.loc[df['month'].isin([9, 10, 11]), 'season'] = 3
     
-    # Additionnal Data Features
+    # * Date Year Combination
     df['day^year'] = np.log((np.log(df['dayofyear'] + 1)) ** (df['year'] - 2000))
-    
-    # Drop date
-    df.drop('date', axis=1, inplace=True)
     
     return df
 
+pd.DataFrame.create_date_features = create_date_features
+
 def flatten_list_of_lists(t):
+    """
+    Flattens a list of lists into a single list.
+
+    Args:
+        t (list): A list of lists to be flattened.
+
+    ALternative:
+        Use itertool's chain method.
+
+    Returns:
+        list: A flattened list containing all the elements from the input list of lists.
+    """
     return [item for sublist in t for item in sublist]
 
 from tqdm.notebook import tqdm_notebook
 def tqdm_custom(iterable,**add_params):
+    """
+    Creates a custom tqdm progress bar for iterating over an iterable.
+
+    Args:
+        iterable (iterable): The iterable to iterate over.
+        **add_params (dict): Additional parameters to pass to tqdm_notebook.
+
+    Returns:
+        tqdm.notebook.tqdm_notebook: A tqdm progress bar for iterating over the iterable.
+
+    Note:
+        The custom bar format includes the description, percentage, bar, current and total item counts, elapsed time, and remaining time.
+    """
     bar_format = "{desc}: {percentage:.3f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining} {rate_inv_fmt}"
     return tqdm_notebook(iterable,bar_format = bar_format,**add_params)
 
 def to_map(self, key_col, value_col):
+    """
+    Generates a dictionary mapping values from the specified columns in the DataFrame.
+
+    Parameters:
+        key_col (str): The name of the column to be used as keys in the dictionary.
+        value_col (str): The name of the column to be used as values in the dictionary.
+
+    Returns:
+        dict: A dictionary mapping values from the key_col to values from the value_col.
+    """
     return self.set_index(key_col)[value_col].to_dict()
 pd.DataFrame.to_map = to_map
 
@@ -272,6 +402,15 @@ def custom_mode(arr):
         return max_at[0]
 
 def custom_mode_return_all(arr):
+    """
+    Returns a list of all elements in the input array that have the highest frequency.
+    
+    Parameters:
+        arr (Iterable): An iterable of elements.
+        
+    Returns:
+        List[Any]: A list of elements that have the highest frequency in the input array.
+    """
     freq = defaultdict(int)
     for i in arr:
         freq[i] += 1
