@@ -8,7 +8,7 @@ class Logger:
         self.std_err = std_err
         self.level = self.LEVELS.get(level, logging.INFO)
         self.logger = None
-        self.dt_fmt_basic = kwargs.get('dt_fmt_basic', True)
+        self.dt_fmt_basic = kwargs.get('dt_fmt_basic', False)
     
     LEVELS = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARNING, 'error': logging.ERROR, 'critical': logging.CRITICAL}
     
