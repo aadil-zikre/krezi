@@ -45,9 +45,9 @@ class Logger:
             stream_handler.setLevel(self.level)
             self.logger.addHandler(stream_handler)
     
-    def get_logger(self, dt_fmt_basic = True):
+    def get_logger(self):
         if not self.logger:
-            self.set_logger(dt_fmt_basic)
+            self.set_logger(self.dt_fmt_basic)
         return self.logger
     
     def add_file_handler(self, filepath, level = logging.INFO, dt_fmt_basic=None):
