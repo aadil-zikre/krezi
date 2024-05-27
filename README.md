@@ -16,5 +16,5 @@ Overall the package provides the following utilities:
 ## INSTALLATION
 
 ```
-    pip install krezi
+pip install krezi
 ```
