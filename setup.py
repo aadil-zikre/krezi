@@ -5,7 +5,7 @@ with open("README.md", 'r') as f:
 
 setup(
     name='krezi',
-    version='1.2',
+    version='1.3',
     python_requires='>= 3.9',
     author="Aadil Zikre",
     author_email="aadilzikre@gmail.com",
