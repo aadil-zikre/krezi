@@ -6,14 +6,6 @@ from email import encoders
 import sys
 import traceback
 
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-import sys
-import traceback
-
 class EmailNotifier:
     def __init__(self, smtp_server, smtp_port, sender_email, sender_password):
         """

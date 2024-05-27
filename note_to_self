@@ -1,0 +1,3 @@
+## To Build the Project : in the directory, run python setup.py sdist bdist_wheel
+## Remove the previous build manually from dist/
+## Upload the Project on PyPI : twine upload dist/*

@@ -1,1 +1,0 @@
-from email_utils.email_notifier import EmailNotifier    

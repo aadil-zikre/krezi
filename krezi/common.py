@@ -1,40 +1,63 @@
-from pickle import TRUE
-import __main__
-
-# if something in dir(__main__):
-
-# from IPython.display import display, HTML
+######################################### IMPORTS #############################################
+## ALIASED IMPORTS
 import IPython.display as ip_display
-def fit_to_screen():
-    """
-    A function to fit the display to the screen by modifying the HTML style.
-    """
-    ip_display.display(ip_display.HTML("<style>.container { width:100% !important; }</style>"))
-fit_to_screen()
-
 import numpy as np
 import pandas as pd
+
+## NORMAL IMPORTS
+import __main__
 import datetime 
 import time 
 import itables
 import logging
-from krezi.logging_util.file_logger import Logger
 import importlib
 import sys
 import os
 import gc
 import pickle
-import functools 
-from collections import defaultdict
-from krezi.multiprocessing_util.mp_util import run_in_parallel
+import functools
+import types 
 
+## FUNCTION IMPORTS 
+from collections import defaultdict
+
+## LOCAL FUNCTION IMPORTS
+from krezi.multiprocessing_util.mp_util import run_in_parallel
+from krezi.logging_util.file_logger import Logger
+
+############################# INITIALIZING USEFUL GLOBAL VARIABLES #################################
 home_dir = os.environ.get('HOME_DIR') 
 notebooks_dir = os.environ.get('NOTEBOOKS_DIR')
 data_dir = os.environ.get('DATA_DIR') 
 log_dir = os.environ.get('LOG_DIR') 
 tmp_dir = os.environ.get('TMP_DIR')
 
-import types
+####################################### SETTING LOGGER ############################################
+logger = Logger('krezi_def')
+log = logger.get_logger() # You can change the date format here
+
+log_debug = log.debug
+log_info = log.info
+log_warning = log.warning
+log_error = log.error
+log_critical = log.critical
+
+log_info("Logger initialized WITHOUT file handler")
+
+def init_logger(filepath):
+    global log
+    log = logger.add_file_handler(filepath)
+    log_info(f"File Handler added. Location set to {filepath!r}")
+
+###################################### COMMON FUNCTIONS ##########################################
+def fit_to_screen():
+    """
+    A function to fit the display to the screen by modifying the HTML style. Useful with Jupyter Notebooks.
+    """
+    ip_display.display(ip_display.HTML("<style>.container { width:100% !important; }</style>"))
+fit_to_screen()
+
+## RELATED TO MODULES AND OBJECTS
 def imported_modules():
     """
     Generates a generator that yields the names and values of imported modules.
@@ -68,6 +91,42 @@ def display_imported_modules():
     """
     for module, alias in imported_modules(): 
         print(f"{module:<50} as {' '*5}{alias}")
+
+def reload_modules(modules:list) -> None:
+    """
+    Reloads the specified modules.
+
+    Args:
+        modules (list): A list of modules to reload.
+
+    Returns:
+        None
+    """
+    for module in modules:
+        importlib.reload(module)
+
+def reload_krezi():
+    """
+    Reloads the 'krezi' module.
+
+    This function reloads the 'krezi' module by calling the 'reload_modules' function with the list containing the 'krezi' module as its argument.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
+    reload_modules(['krezi'])
+
+import ctypes
+def get_object_at_address(address):
+    '''
+    address=0x7822e7c7bac0
+    print(f"Value from address {address} is {ctypes.cast(address, ctypes.py_object).value}")
+    '''
+    obj = ctypes.cast(address, ctypes.py_object).value
+    return obj
 
 def elapsed_time(start_tm):
     """
@@ -116,6 +175,93 @@ def func_et(func):
         if res: return res
     return func_wrapper
 
+def flatten_list_of_lists(t):
+    """
+    Flattens a list of lists into a single list.
+
+    Args:
+        t (list): A list of lists to be flattened.
+
+    ALternative:
+        Use itertool's chain method.
+
+    Returns:
+        list: A flattened list containing all the elements from the input list of lists.
+    """
+    return [item for sublist in t for item in sublist]
+
+from tqdm.notebook import tqdm_notebook
+def tqdm_custom(iterable,**add_params):
+    """
+    Creates a custom tqdm progress bar for iterating over an iterable.
+
+    Args:
+        iterable (iterable): The iterable to iterate over.
+        **add_params (dict): Additional parameters to pass to tqdm_notebook.
+
+    Returns:
+        tqdm.notebook.tqdm_notebook: A tqdm progress bar for iterating over the iterable.
+
+    Note:
+        The custom bar format includes the description, percentage, bar, current and total item counts, elapsed time, and remaining time.
+    """
+    bar_format = "{desc}: {percentage:.3f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining} {rate_inv_fmt}"
+    return tqdm_notebook(iterable,bar_format = bar_format,**add_params)
+
+## RELATED TO SUBPROCESSING MODULE
+# command = f"aws s3 ls {s3_dir} --human-readable --summarize | sort -k 2 -r | awk '{{print $5}}'"
+import subprocess
+def run_command(command, return_output = False):
+    with subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, universal_newlines=True) as p:
+        log_info(f"Running Command (first 200 characters) :: {command[:200]}")
+        output = p.stdout.readlines()
+        log_info("output :: ", ''.join(output))
+        log_info("error :: ", p.stderr.read())
+    log_info("return code :: ", p.returncode)
+    if return_output:
+            res = set(output)
+            res.discard('\n')
+            return list(res)
+cmd = run_command
+
+def run_command_return_output(command):
+    return run_command(command, return_output = True)
+
+## RELATED TO IMPORT EXPORT
+def to_pickle(object, path):
+    with open(path, 'wb') as f:
+        pickle.dump(object, f)
+
+def read_pickle(path):
+    with open(path, 'rb') as f:
+        object = pickle.load(f)
+    return object
+
+def read_parquet_from_s3(s3_path, FILENAME):
+    this_file_name = FILENAME
+
+    filename = this_file_name if FILENAME.endswith(".parquet") else f'{this_file_name}.parquet'
+    s3_dir = 's3://analytics.faasos.io'
+    s3_path = f'{s3_dir}/{s3_path}'
+    s3_path = s3_path if s3_path.endswith("/") else s3_path+"/"
+
+    cmd(f"aws s3 cp {s3_path}{filename} /tmp/")
+
+    return pd.read_parquet(f'/tmp/{filename}')
+
+def to_parquet_to_s3(df, s3_path, FILENAME):
+    this_file_name = FILENAME
+
+    filename = this_file_name if FILENAME.endswith(".parquet") else f'{this_file_name}.parquet'
+    df.to_parquet(f'/tmp/{filename}', index=False)
+    
+    s3_dir = 's3://analytics.faasos.io'
+    s3_path = f'{s3_dir}/{s3_path}'
+    s3_path = s3_path if s3_path.endswith("/") else s3_path+"/"
+
+    cmd(f"aws s3 cp /tmp/{filename} {s3_path}")
+
+## RELATED TO MATHS
 def custom_round_nearest_p5(number):
     """
     Rounds a number to the nearest multiple of 0.5.
@@ -141,6 +287,42 @@ def custom_round_nearest_p5(number):
         return int(number)+0.5
     elif x>0.5:
         return int(number)+1.0
+
+def custom_mode(arr):
+    freq = defaultdict(int)
+    for i in arr:
+        freq[i] += 1
+    max_freq = max(freq.values())
+    max_at = [k for k,v in freq.items() if v == max_freq]
+    if len(max_at) > 1:
+        return -1
+    else:
+        return max_at[0]
+
+def custom_mode_return_all(arr):
+    """
+    Returns a list of all elements in the input array that have the highest frequency.
+    
+    Parameters:
+        arr (Iterable): An iterable of elements.
+        
+    Returns:
+        List[Any]: A list of elements that have the highest frequency in the input array.
+    """
+    freq = defaultdict(int)
+    for i in arr:
+        freq[i] += 1
+    max_freq = max(freq.values())
+    max_at = [k for k,v in freq.items() if v == max_freq]
+    return max_at
+
+## RELATED TO PANDAS
+## Printing Dataframes as DataTables 
+# https://github.com/mwouts/itables/blob/61c1c916175a77f27623eb93fa4ecf42b9a7b7b4/itables/options.py
+# for options
+
+pd.DataFrame.data_table = itables.show
+pd.DataFrame.dT = pd.DataFrame.data_table
 
 STARTING_THRESHOLD = 0
 def accuracy_calculator_xgb_reg(y_actual, y_pred, apply_round = False, round_engine = custom_round_nearest_p5, thresh = STARTING_THRESHOLD):
@@ -202,6 +384,20 @@ def accuracy_calculator_xgb_reg(y_actual, y_pred, apply_round = False, round_eng
             "over_predicted%" : round(perc_op,2), 
             "under_predicted%" : round(perc_up,2)}
 
+def to_map(self, key_col, value_col):
+    """
+    Generates a dictionary mapping values from the specified columns in the DataFrame.
+
+    Parameters:
+        key_col (str): The name of the column to be used as keys in the dictionary.
+        value_col (str): The name of the column to be used as values in the dictionary.
+
+    Returns:
+        dict: A dictionary mapping values from the key_col to values from the value_col.
+    """
+    return self.set_index(key_col)[value_col].to_dict()
+pd.DataFrame.to_map = to_map
+
 def create_date_features(df, date_col, holidays = None):
     """
     Creates date features for a given DataFrame.
@@ -260,146 +456,6 @@ def create_date_features(df, date_col, holidays = None):
 
 pd.DataFrame.create_date_features = create_date_features
 
-def flatten_list_of_lists(t):
-    """
-    Flattens a list of lists into a single list.
-
-    Args:
-        t (list): A list of lists to be flattened.
-
-    ALternative:
-        Use itertool's chain method.
-
-    Returns:
-        list: A flattened list containing all the elements from the input list of lists.
-    """
-    return [item for sublist in t for item in sublist]
-
-from tqdm.notebook import tqdm_notebook
-def tqdm_custom(iterable,**add_params):
-    """
-    Creates a custom tqdm progress bar for iterating over an iterable.
-
-    Args:
-        iterable (iterable): The iterable to iterate over.
-        **add_params (dict): Additional parameters to pass to tqdm_notebook.
-
-    Returns:
-        tqdm.notebook.tqdm_notebook: A tqdm progress bar for iterating over the iterable.
-
-    Note:
-        The custom bar format includes the description, percentage, bar, current and total item counts, elapsed time, and remaining time.
-    """
-    bar_format = "{desc}: {percentage:.3f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining} {rate_inv_fmt}"
-    return tqdm_notebook(iterable,bar_format = bar_format,**add_params)
-
-def to_map(self, key_col, value_col):
-    """
-    Generates a dictionary mapping values from the specified columns in the DataFrame.
-
-    Parameters:
-        key_col (str): The name of the column to be used as keys in the dictionary.
-        value_col (str): The name of the column to be used as values in the dictionary.
-
-    Returns:
-        dict: A dictionary mapping values from the key_col to values from the value_col.
-    """
-    return self.set_index(key_col)[value_col].to_dict()
-pd.DataFrame.to_map = to_map
-
-def read_parquet_from_s3(s3_path, FILENAME):
-    this_file_name = FILENAME
-
-    filename = this_file_name if FILENAME.endswith(".parquet") else f'{this_file_name}.parquet'
-    s3_dir = 's3://analytics.faasos.io'
-    s3_path = f'{s3_dir}/{s3_path}'
-    s3_path = s3_path if s3_path.endswith("/") else s3_path+"/"
-
-    cmd(f"aws s3 cp {s3_path}{filename} /tmp/")
-
-    return pd.read_parquet(f'/tmp/{filename}')
-
-def to_parquet_to_s3(df, s3_path, FILENAME):
-    this_file_name = FILENAME
-
-    filename = this_file_name if FILENAME.endswith(".parquet") else f'{this_file_name}.parquet'
-    df.to_parquet(f'/tmp/{filename}', index=False)
-    
-    s3_dir = 's3://analytics.faasos.io'
-    s3_path = f'{s3_dir}/{s3_path}'
-    s3_path = s3_path if s3_path.endswith("/") else s3_path+"/"
-
-    cmd(f"aws s3 cp /tmp/{filename} {s3_path}")
-
-# command = f"aws s3 ls {s3_dir} --human-readable --summarize | sort -k 2 -r | awk '{{print $5}}'"
-import subprocess
-def run_command(command, return_output = False):
-    with subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, universal_newlines=True) as p:
-        print(f"Running Command :: {command}")
-        output = p.stdout.readlines()
-        print("output :: ", ''.join(output))
-        print("error :: ", p.stderr.read())
-    print("return code :: ", p.returncode)
-    if return_output:
-            res = set(output)
-            res.discard('\n')
-            return list(res)
-cmd = run_command
-
-def run_command_return_output(command):
-    return run_command(command, return_output = True)
-
-logger = Logger('acf')
-log = logger.get_logger() # You can change the date format here
-
-log_debug = log.debug
-log_info = log.info
-log_warning = log.warning
-log_error = log.error
-log_critical = log.critical
-
-
-log_info("Logger initialized WITHOUT file handler")
-
-def init_logger(filepath):
-    global log
-    log = logger.add_file_handler(filepath)
-    log_info(f"File Handler added. Location set to {filepath!r}")
-
-## Printing Dataframes as DataTables 
-# https://github.com/mwouts/itables/blob/61c1c916175a77f27623eb93fa4ecf42b9a7b7b4/itables/options.py
-# for options
-
-pd.DataFrame.data_table = itables.show
-pd.DataFrame.dT = pd.DataFrame.data_table
-
-def reload_modules(modules:list) -> None:
-    """
-    Reloads the specified modules.
-
-    Args:
-        modules (list): A list of modules to reload.
-
-    Returns:
-        None
-    """
-    for module in modules:
-        importlib.reload(module)
-
-def reload_krezi():
-    """
-    Reloads the 'krezi' module.
-
-    This function reloads the 'krezi' module by calling the 'reload_modules' function with the list containing the 'krezi' module as its argument.
-
-    Parameters:
-        None
-
-    Returns:
-        None
-    """
-    reload_modules(['krezi'])
-
 def apply_on_series(df, func):
     return df.progress_apply(func)
 
@@ -422,49 +478,3 @@ def multicore_apply_by_chunks(df_st, func, max_chunks, max_workers = None, log_p
     return results
 
 pd.Series.multicore_apply_by_chunks = multicore_apply_by_chunks
-
-def to_pickle(object, path):
-    with open(path, 'wb') as f:
-        pickle.dump(object, f)
-
-def read_pickle(path):
-    with open(path, 'rb') as f:
-        object = pickle.load(f)
-    return object
-
-def custom_mode(arr):
-    freq = defaultdict(int)
-    for i in arr:
-        freq[i] += 1
-    max_freq = max(freq.values())
-    max_at = [k for k,v in freq.items() if v == max_freq]
-    if len(max_at) > 1:
-        return -1
-    else:
-        return max_at[0]
-
-def custom_mode_return_all(arr):
-    """
-    Returns a list of all elements in the input array that have the highest frequency.
-    
-    Parameters:
-        arr (Iterable): An iterable of elements.
-        
-    Returns:
-        List[Any]: A list of elements that have the highest frequency in the input array.
-    """
-    freq = defaultdict(int)
-    for i in arr:
-        freq[i] += 1
-    max_freq = max(freq.values())
-    max_at = [k for k,v in freq.items() if v == max_freq]
-    return max_at
-
-import ctypes
-def get_object_at_address(address):
-    '''
-    address=0x7822e7c7bac0
-    print(f"Value from address {address} is {ctypes.cast(address, ctypes.py_object).value}")
-    '''
-    obj = ctypes.cast(address, ctypes.py_object).value
-    return obj
