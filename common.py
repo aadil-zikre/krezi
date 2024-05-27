@@ -21,15 +21,18 @@ import logging
 from krezi.logging_util.file_logger import Logger
 import importlib
 import sys
+import os
 import gc
 import pickle
 import functools 
 from collections import defaultdict
 from krezi.multiprocessing_util.mp_util import run_in_parallel
 
-data_dir = "/home/azikre/Python/notebooks/data/" # *REMINDER to CHANGE
-log_dir = "/home/azikre/Python/notebooks/logs/"
-tmp_dir = "/home/azikre/Python/notebooks/tmp/"
+home_dir = os.environ.get('HOME_DIR') 
+notebooks_dir = os.environ.get('NOTEBOOKS_DIR')
+data_dir = os.environ.get('DATA_DIR') 
+log_dir = os.environ.get('LOG_DIR') 
+tmp_dir = os.environ.get('TMP_DIR')
 
 import types
 def imported_modules():
@@ -371,9 +374,31 @@ pd.DataFrame.data_table = itables.show
 pd.DataFrame.dT = pd.DataFrame.data_table
 
 def reload_modules(modules:list) -> None:
+    """
+    Reloads the specified modules.
+
+    Args:
+        modules (list): A list of modules to reload.
+
+    Returns:
+        None
+    """
     for module in modules:
         importlib.reload(module)
 
+def reload_krezi():
+    """
+    Reloads the 'krezi' module.
+
+    This function reloads the 'krezi' module by calling the 'reload_modules' function with the list containing the 'krezi' module as its argument.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
+    reload_modules(['krezi'])
 
 def apply_on_series(df, func):
     return df.progress_apply(func)

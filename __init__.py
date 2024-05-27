@@ -14,7 +14,7 @@ from krezi.stopwatch_util.stopwatch import Stopwatch
 if linux : write this in .bashrc
 if mac : write this in .zshrc
 
-cmd : PYTHONPATH="$PYTHONPATH:/Users/aadilzikre/Documents/Office PC/REBEL FOODS - Copy/Python/common functions az/"
+cmd : PYTHONPATH="$PYTHONPATH:/absolute/location/of/directory/krezi/"
 cmd : echo PYTHONPATH
 
 Module Funcs can be imported as 
