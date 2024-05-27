@@ -11,3 +11,10 @@ Overall the package provides the following utilities:
 6. Postgresql : Querying from Postgres Databases.
 7. MSSQL : Querying from Microsoft SQL Server Databases.
 8. Mongo : Querying from Mongo Databases. 
+
+---
+## INSTALLATION
+
+```
+    pip install krezi
+```
