@@ -30,7 +30,7 @@ class Logger:
         logging.getLogger().removeHandler(logging.getLogger().handlers[0])
         self.logger = logging.getLogger(self.logger_name) ## IMP: __name__ is important for scope of logger
         self.logger.setLevel(logging.DEBUG)
-        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic is None else dt_fmt_basic
+        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic in (None, False) else dt_fmt_basic
         if dt_fmt_basic:
             formatter = logging.Formatter("%(asctime)s :: [%(levelname)s] :: %(message)s")
         else:
@@ -53,7 +53,7 @@ class Logger:
     def add_file_handler(self, filepath, level = logging.INFO, dt_fmt_basic=None):
         file_handler = logging.FileHandler(filepath)
         file_handler.setLevel(level)
-        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic is None else dt_fmt_basic
+        dt_fmt_basic = self.dt_fmt_basic if dt_fmt_basic in (None, False) else dt_fmt_basic
         if dt_fmt_basic:
             formatter = logging.Formatter(
                 '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s')
